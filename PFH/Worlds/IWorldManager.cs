@@ -7,7 +7,7 @@ namespace PFH.Worlds
 	{
 		event Action<string> TargetLevelChangeEvent;
 		
-		WorldConfig Config { get; }
+		IWorldData Data { get; }
 		bool Active { get; set; }
 		Transform Target { get; set; }
 		string TargetLevelName { get; }

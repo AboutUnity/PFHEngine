@@ -1,11 +1,14 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace PFH.Worlds
 {
-	public class WorldConfig : ScriptableObject
+	public class WorldConfig : ScriptableObject, IWorldData
 	{
-		[Serializable]
+		[Serializable, Obsolete]
 		public struct Cell
 		{
 			[HideInInspector]
@@ -14,21 +17,70 @@ namespace PFH.Worlds
 			public Rect Rect;
 		}
 
-		public Cell[] Cells = Array.Empty<Cell>();
-		public float CellSize = 48f;
-		public float PreloadRadius = 20f;
-		public float LoadRadius = 15f;
-		public float UnloadRadius = 25f;
-		public float RadiusHorizontal = 1.1f;
-		public float RadiusOffsetY = 5f;
-		public float CheckTime = 0.5f;
+		[FormerlySerializedAs("Cells"), Obsolete, HideInInspector] 
+		public Cell[] CellsObsolete = Array.Empty<Cell>();
+		
+		
+		[SerializeField]
+		private List<SceneLevelData> _cells = new List<SceneLevelData>();
+		
+		[FormerlySerializedAs("CellSize")]
+		[SerializeField]
+		private float _cellSize = 48f;
+		[FormerlySerializedAs("PreloadRadius")]
+		[SerializeField]
+		private float _preloadRadius = 20f;
+		[FormerlySerializedAs("LoadRadius")]
+		[SerializeField]
+		private float _loadRadius = 15f;
+		[FormerlySerializedAs("UnloadRadius")]
+		[SerializeField]
+		private float _unloadRadius = 25f;
+		[FormerlySerializedAs("RadiusHorizontal")]
+		[SerializeField]
+		private float _radiusHorizontal = 1.1f;
+		[FormerlySerializedAs("RadiusOffsetY")]
+		[SerializeField]
+		private float _radiusOffsetY = 5f;
+		[FormerlySerializedAs("CheckTime")]
+		[SerializeField]
+		private float _checkTime = 0.5f;
+
+		private List<ILevelData> _cellsCache = null;
+
+		public List<ILevelData> Levels
+		{
+			get
+			{
+				if (_cellsCache == null)
+				{
+					_cellsCache = _cells.Cast<ILevelData>().ToList();
+				}
+				return _cellsCache;
+			}
+		}
+		public float CellSize => _cellSize;
+		public float PreloadRadius => _preloadRadius;
+		public float LoadRadius => _loadRadius;
+		public float UnloadRadius => _loadRadius;
+		public float RadiusHorizontal => _radiusHorizontal;
+		public float RadiusOffsetY => _radiusOffsetY;
+		public float CheckTime => _checkTime;
 
 #if UNITY_EDITOR
 		public void OnValidate()
 		{
-			for (int i = 0; i < Cells.Length; i++)
+			if (_cells.Count <= 0)
 			{
-				Cells[i].DebugTitle = $"{i}. {Cells[i].LevelName}   [ {Cells[i].Rect.position.x / CellSize} : {Cells[i].Rect.position.y / CellSize} ]";
+				foreach (var cell in CellsObsolete)
+				{
+					_cells.Add(new SceneLevelData(cell.LevelName, cell.Rect));
+				}
+			}
+			
+			for (int i = 0; i < _cells.Count; i++)
+			{
+				_cells[i].OnValidate(i);
 			}
 		}
 #endif

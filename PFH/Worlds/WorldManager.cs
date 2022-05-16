@@ -16,6 +16,7 @@ namespace PFH.Worlds
 		}
 		
 		private readonly ILevelLoaderManager _levelLoaderManager;
+		private readonly IWorldLevelProcessor _levelProcessor;
 		
 		private bool _active = false;
 		private CheckState _checkState = CheckState.Preload;
@@ -29,7 +30,7 @@ namespace PFH.Worlds
 		private List<string> _notUnload = new List<string>();
 		private List<string> _loadedLevels = new List<string>();
 
-		public WorldConfig Config { get; }
+		public IWorldData Data { get; }
 
 		public bool Active 
 		{
@@ -53,16 +54,20 @@ namespace PFH.Worlds
 
 		public string TargetLevelName => _targetLevelName;
 
-		public WorldManager(ILevelLoaderManager levelLoaderManager, WorldConfig config)
+		public WorldManager(ILevelLoaderManager levelLoaderManager, IWorldLevelProcessor levelProcessor, IWorldData data)
 		{
 			_levelLoaderManager = levelLoaderManager;
-			Config = config;
+			_levelProcessor = levelProcessor;
+			Data = data;
+			
+			_levelLoaderManager.LoadEvent += OnLevelLoaded;
 
 			Active = false;
 		}
 
 		public void Dispose()
 		{
+			_levelLoaderManager.LoadEvent -= OnLevelLoaded;
 			Active = false;
 		}
 
@@ -89,20 +94,28 @@ namespace PFH.Worlds
 						_checkState = CheckState.Preload;
 					}
 
-					_checkTimer = Config.CheckTime;
+					_checkTimer = Data.CheckTime;
 				}
+			}
+		}
+		
+		private void OnLevelLoaded(ILevelController level)
+		{
+			if (_levelProcessor != null)
+			{
+				_levelProcessor.Process(level);
 			}
 		}
 
 		private void CheckPreloadLevels()
 		{
-
+			//TODO need implements
 		}
 
 		private void CheckLoadLevels()
 		{
 			_needLoad.Clear();
-			var nextTargetLevelName = CalcLevels(_target.position.x, _target.position.z, Config.LoadRadius, _needLoad);
+			var nextTargetLevelName = CalcLevels(_target.position.x, _target.position.z, Data.LoadRadius, _needLoad);
 		
 			if(_targetLevelName != nextTargetLevelName)
 			{
@@ -125,7 +138,7 @@ namespace PFH.Worlds
 		{
 			_notUnload.Clear();
 
-			CalcLevels(_target.position.x, _target.position.z, Config.UnloadRadius, _notUnload);
+			CalcLevels(_target.position.x, _target.position.z, Data.UnloadRadius, _notUnload);
 			for(int i = _loadedLevels.Count - 1; i >= 0; --i)
 			{
 				if(!_notUnload.Contains(_loadedLevels[i]))
@@ -141,20 +154,20 @@ namespace PFH.Worlds
 			string result = null;
 			var p = new Vector2(x, y);
 		
-			var ry = y + Config.RadiusOffsetY;
-			var wRadius = radius * Config.RadiusHorizontal;
+			var ry = y + Data.RadiusOffsetY;
+			var wRadius = radius * Data.RadiusHorizontal;
 			var r = new Rect(x - wRadius, ry - radius, wRadius * 2f, radius * 2f);
 		
-			for (int i = 0; i < Config.Cells.Length; ++i)
+			for (int i = 0; i < Data.Levels.Count; ++i)
 			{
-				if (result == null && Config.Cells[i].Rect.Contains(p))
+				if (result == null && Data.Levels[i].Rect.Contains(p))
 				{
-					result = Config.Cells[i].LevelName;
+					result = Data.Levels[i].LevelName;
 				}
 
-				if (Config.Cells[i].Rect.Overlaps(r))
+				if (Data.Levels[i].Rect.Overlaps(r))
 				{
-					levels.Add(Config.Cells[i].LevelName);
+					levels.Add(Data.Levels[i].LevelName);
 				}
 			}
 
